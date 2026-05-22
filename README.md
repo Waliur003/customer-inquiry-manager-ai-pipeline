@@ -156,7 +156,7 @@ Built custom JSON configuration statements restricting resource capabilities str
 
 To enforce the core cloud engineering principles of repeatability, drift detection, and immutable infrastructure, the entire multi-tier environment is provisioned using declarative **Terraform (v1.0+)** configurations. The codebase is strictly decoupled into modular component files to segregate logic domains (Network, Compute, Storage, and Identity) and to allow scalable infrastructure management.
 
-### 📁 Directory Layout & Modular Structure
+###  Directory Layout & Modular Structure
 
 The workspace is organized using a flat, high-readability layout optimized for granular component modifications:
 
@@ -173,7 +173,7 @@ customer-inquiry-manager-ai-pipeline/
 
 ---
 
-## 🛠️ Detailed File-by-File Technical Breakdown
+##  Detailed File-by-File Technical Breakdown
 
 ### 1. Provider Configurations (`provider.tf`)
 
@@ -237,7 +237,7 @@ resources = ["arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-s
 
 
 
-## 🔒 Security & Parameters Architecture (`variables.tf` & `terraform.tfvars`)
+##  Security & Parameters Architecture (`variables.tf` & `terraform.tfvars`)
 
 **Credential Decoupling:** Database structural parameters such as `db_username` and `db_password` are declared as strongly typed variables without fallback values inside `variables.tf`.
 
