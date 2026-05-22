@@ -152,48 +152,98 @@ Built custom JSON configuration statements restricting resource capabilities str
 
 ---
 
-##  Infrastructure as Code (Terraform Topology)
+## Infrastructure as Code (IaC) Architecture
 
-To ensure this multi-tier architecture is highly available, repeatable, and securely governed, the entire footprint has been modularized and declared dynamically using **Terraform**. This eliminates configuration drift, automates environmental provisioning, and establishes a clear documentation history of the network boundaries.
+To enforce the core cloud engineering principles of repeatability, drift detection, and immutable infrastructure, the entire multi-tier environment is provisioned using declarative **Terraform (v1.0+)** configurations. The codebase is strictly decoupled into modular component files to segregate logic domains (Network, Compute, Storage, and Identity) and to allow scalable infrastructure management.
 
-###  Configuration Layout
+### 📁 Directory Layout & Modular Structure
 
-The codebase is organized using a production-ready, decoupled multi-file strategy to isolate resource domains:
+The workspace is organized using a flat, high-readability layout optimized for granular component modifications:
 
-* [cite_start]**`provider.tf`**: Declares foundational configuration block dependencies, pulling the official HashiCorp AWS provider registry module (`~> 4.0`) [cite: 8] [cite_start]and binding execution targets to the regional variable context[cite: 8].
-* [cite_start]**`variables.tf` / `terraform.tfvars`**: Parameterizes variable schemas (e.g., region tokens, credentials) [cite: 17, 18][cite_start], utilizing a strict separation of values where sensitive inputs are decoupled into uncommitted variable files to protect backend security[cite: 16].
-* [cite_start]**`vpc.tf`**: Establishes the core software-defined networking topology, mapping subnets across distinct Availability Zones [cite: 22][cite_start], public routing gateways [cite: 23, 24][cite_start], and internal interface endpoints[cite: 24].
-* [cite_start]**`security_groups.tf`**: Maps stateful state-tracking firewall rule arrays [cite: 12][cite_start], isolating port traffic blocks using a zero-trust structural model[cite: 12, 15].
-* **`iam.tf`**: Programmatically designs runtime service-to-service trust policies and fine-grained permissions without relying on static access tokens[cite: 4, 6].
-* [cite_start]**`rds.tf`**: Mounts the managed, highly available relational persistence cluster inside isolated subnet groups[cite: 9, 10].
-* [cite_start]**`ec2.tf`**: Provisions the dedicated web compute instance, handling automated runtime dependency installations upon boot initialization[cite: 2, 3].
+```text
+customer-inquiry-manager-ai-pipeline/
+├── provider.tf          # Core initialization and cloud provider scoping
+├── variables.tf         # Parameter types, validations, and default definitions
+├── terraform.tfvars     # Environment-specific configuration parameter values
+├── vpc.tf               # Isolated network primitives (VPC, Subnets, Gateways, Routes)
+├── security_groups.tf   # Stateful firewall boundaries and port configurations
+├── iam.tf               # Role definitions, assume trusts, and instance profiles
+└── ec2.tf               # Stateful web server configurations and AMI data lookups
+```
 
 ---
 
-###  Architectural Deep Dive & Implementation Details
+## 🛠️ Detailed File-by-File Technical Breakdown
 
+### 1. Provider Configurations (`provider.tf`)
 
+**Provider Scoping:** Declares the minimum required provider version constraint (`hashicorp/aws ~> 4.0`) to avoid execution breaking changes across major versions.
 
-#### 1. Software-Defined Networking & Traffic Routing (`vpc.tf`)
-[cite_start]The networking layer deploys a custom virtual network space utilizing a `10.0.0.0/16` block mapping[cite: 21].
-* [cite_start]**Public/Private Subnet Ingress Matrix:** The script spins up two public subnets mapped directly to an Internet Gateway to route standard web traffic[cite: 22, 24]. [cite_start]Simultaneously, it isolates two private subnets across alternate Availability Zones for database storage redundancy[cite: 22].
-* [cite_start]**VPC S3 Gateway Endpoints:** Rather than allowing the isolated database tier to step out to the public internet for storage access, a secure **VPC Gateway Endpoint** is bound to the private routing tables[cite: 24]. [cite_start]This keeps traffic targeting Amazon S3 completely constrained to the internal AWS private global network backbone[cite: 24].
+**Regional Binding:** Targets the dynamic region variable (`var.aws_region`) to safely establish consistent resource provisioning constraints.
 
-#### 2. Stateful Network Perimeter Contouring (`security_groups.tf`)
-[cite_start]The project implements a layered security group matrix acting as distributed network firewalls[cite: 12]:
-* [cite_start]**Application Server Boundaries (`EC2-Web-SG`)**: Restricts public ingress pathways specifically to custom TCP port `8080` for live Flask web form ingestion, and TCP port `22` for temporary admin management links[cite: 12, 13]. [cite_start]It allows full outbound egress (`-1`) to enable the application server to call serverless AWS APIs[cite: 14].
-* [cite_start]**Database Ingress Isolation (`RDS-DB-SG`)**: Blocks all direct public internet interaction[cite: 11, 15]. [cite_start]The ingress block restricts traffic down to port `3306` (MySQL) and evaluates the packet source dynamically[cite: 15]. [cite_start]Traffic is dropped on the fly unless it originates from an instance carrying the exact `EC2-Web-SG` security group identifier token[cite: 15].
+---
 
-#### 3. Programmatic Trust and Least-Privilege IAM Lifecycle (`iam.tf`)
-To eliminate the risk of exposed keys or hardcoded administrative root credentials inside code repositories, access governance is handled natively by the cloud control plane:
-* **AssumeRole Trust Trust Boundaries:** The code creates an operational role that explicitly restricts trust parameters to the `ec2.amazonaws.com` service principal[cite: 4].
-* [cite_start]**Granular Execution Scoping:** An inline JSON policy document strictly limits execution permissions to the exact operations required by the backend script (`bedrock:InvokeModel` and `ses:SendEmail`)[cite: 6]. [cite_start]The Bedrock capability is tightly constrained to the specific resource ARN of the Claude 3.5 Sonnet foundation model[cite: 6].
-* **IAM Instance Profile:** An instance profile container is declared, functioning as the logical bridge required to hand these permissions directly over to the virtual instance hardware at run-time[cite: 7].
+### 2. Isolated Network Topology (`vpc.tf`)
 
-#### 4. Isolated Relational Persistence Layer (`rds.tf`)
-The database configuration abstracts storage management away from manual operations while maintaining strict data isolation:
-* [cite_start]**Subnet Group Clustering:** Creates a custom database subnet group that spans across multiple Availability Zones inside the private subnets [cite: 9][cite_start], preventing any public IP assignment[cite: 11].
-* **Data Lifecycle Hardening:** Configures the MySQL engine with standard parameters (`publicly_accessible = false`) to enforce backend network isolation[cite: 11]. It overrides deletion locks (`skip_final_snapshot = true`) to enable seamless, automated development teardowns during non-operational pipeline testing cycles[cite: 11].
+**VPC Partitioning:** Provisions a hard-bordered custom network block (`aws_vpc.InquiryManager`) allocating a `/16` CIDR block for deep architectural isolation.
+
+**Availability Zone Distribution:** Utilizes the dynamic `aws_availability_zones` data source to distribute an array of 2 Public Subnets and 2 Private Subnets cleanly across alternate physical availability zones using `count` and indexing loops.
+
+**Routing and Egress Gateways:** Attaches an `aws_internet_gateway` to handle all public inbound client handshakes. Concurrently maps an internal `aws_vpc_endpoint` (Gateway Endpoint) for Amazon S3 to the private route table, allowing the database layer to communicate with internal AWS systems entirely over the isolated AWS private backbone network.
+
+---
+
+### 3. Stateful Security Infrastructure (`security_groups.tf`)
+
+#### Tier 1 Presentation Firewall (`EC2-Web-SG`)
+
+Implements strict public ingress bounds on TCP Port 8080 (Flask application worker endpoint) and TCP Port 22 (secured administrator gateway connect path). Includes an unrestricted egress block (`protocol = "-1"`) to allow the server to transmit outbound runtime API requests out to Amazon Bedrock and SES.
+
+#### Tier 2 Storage Firewall (`RDS-DB-SG`)
+
+Constructs a zero-trust network perimeter around the persistence tier. It blocks all broad public internet traffic entirely, explicitly restricting inbound execution parameters on TCP Port 3306 (MySQL) to traffic originating exclusively from the security group identifier of the web server.
+
+---
+
+### 4. Managed Relational Database Storage (`rds.tf`)
+
+**Subnet Group Boundaries:** Configures an `aws_db_subnet_group` passing an active array containing only the private subnets, ensuring physical cluster hardware is never provisioned within a public network block.
+
+**Database Customization Parameters:** Launches an `aws_db_instance` running the optimized MySQL 8.0 engine on free-tier compliant infrastructure. The instance enforces security best practices by explicitly hardcoding `publicly_accessible = false` and `skip_final_snapshot = true` to allow smooth sandbox environment lifecycles.
+
+---
+
+### 5. Least-Privilege Identity & Access Governance (`iam.tf`)
+
+**Assume Role Trusts:** Builds an execution trust structure via an `aws_iam_policy_document` data source that securely allows the Amazon EC2 service to assume identity properties dynamically at runtime.
+
+**Granular Policy Design:** Implements structural least-privilege permissions, completely avoiding broad wildcard access. The policy explicitly constrains actions down to a single foundation model ARN for AI queries and locks down messaging actions strictly to necessary mail primitives:
+
+```hcl
+# Scoped permissions mapped within iam.tf
+actions   = ["bedrock:InvokeModel"]
+resources = ["arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"]
+```
+
+**The Instance Profile Container:** Explicitly wraps the generated role inside an `aws_iam_instance_profile` block, establishing the logical interface required to bridge IAM policies directly over to live compute instance hardware frames.
+
+---
+
+### 6. Compute Instance Provisioning (`ec2.tf`)
+
+**Dynamic OS Lookups:** Deploys an `aws_ami` data engine block to automatically evaluate and select the most recent, performance-tuned Amazon Linux HVM image ID metadata string on startup.
+
+**Role Identity Attachment:** Sets the `iam_instance_profile` reference parameter directly to the instance profile container defined inside the identity file. This enables the Flask code running inside the server to perform secure, credential-free AWS API calls without hardcoding static keys.
+
+---
+
+## 🔒 Security & Parameters Architecture (`variables.tf` & `terraform.tfvars`)
+
+**Credential Decoupling:** Database structural parameters such as `db_username` and `db_password` are declared as strongly typed variables without fallback values inside `variables.tf`.
+
+**The Guardrail Rule:** Local execution credentials are assigned values exclusively within `terraform.tfvars`. This local parameters configuration is explicitly targeted inside the `.gitignore` asset log to prevent sensitive production strings from leaking into public Git version control streams.
+
+---
 
 ## Verification and Results
 
@@ -239,9 +289,6 @@ Screenshot of the dynamic output template verifying successful connection valida
 
 ### High Availability and Scalability Implementation
 Introduce an Elastic Load Balancer (ELB) alongside an Auto Scaling Group (ASG) across the public subnets to automatically scale the compute layer based on web traffic.
-
-### Infrastructure as Code (IaC) Refactoring
-Rebuild this complete multi-tier network topology, EC2 runtime configuration, relational database structure, and IAM role settings into reusable Terraform configuration scripts to ensure rapid, automated environment deployments.
 
 ### Enterprise Secrets Governance
 Migrate raw database login credentials out of server variables and store them inside AWS Secrets Manager, configuring programmatic lookups and automated password rotations to enforce stricter data compliance profiles.
