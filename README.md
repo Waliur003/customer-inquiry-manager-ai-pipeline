@@ -1,229 +1,154 @@
+# Repository Name: customer-inquiry-manager-ai-pipeline
+
 # Cloud Engineering Project 06: Customer Inquiry Manager (Intelligent AI Triage Pipeline)
 
 ## Overview
 
-I architected and deployed a secure, two-tier intelligent web application on AWS. This project demonstrates the implementation of a robust infrastructure where customer inquiries are ingested via a persistent application tier, analyzed through generative artificial intelligence, and securely committed to an isolated relational database tier.
+I have architected and deployed a highly secure, enterprise-grade multi-tier intelligent application on AWS. This project demonstrates production-ready cloud practices by isolating database transactions within secure, private network boundaries, leveraging persistent compute primitives, and integrating generative artificial intelligence via serverless APIs. The pipeline ingests unstructured public web forms, processes them through an LLM orchestration layer to extract structured metadata, writes transactional logs to a private relational backend, and routes asynchronous notifications based on intent—all without exposing sensitive storage vectors to the public internet.
 
-This architecture ensures:
+## The Problem
 
-- Strict data isolation
-- Zero exposure of backend databases to the public internet
-- Automated routing of high-priority business requests
+Modern web infrastructure and client intake portals are frequent targets for corporate exploitation and bottleneck inefficiencies. Legacy configurations consistently suffer from two foundational architectural flaws:
 
----
+1. **Network Exposure Risks:** Placing presentation frontends and transactional database components inside shared, public-facing subnets increases the vector area for cross-site scripting, SQL injections, and unauthorized internet scans.
+2. **Operational Intakes Bottlenecks:** Manual triage of customer complaints, technical bugs, billing conflicts, and high-value sales requests creates severe administrative lag. This fragmentation drops critical business revenue opportunities and stretches response metrics beyond optimal limits.
 
-# The Problem
+## The Solution
 
-Legacy customer service workflows and web intake architectures frequently suffer from two major issues:
+* **Stateful Production Hosting Tier:** Leveraged a dedicated **Amazon EC2** compute footprint configured with web frameworks to handle steady-state incoming client request streams, process continuous connection handshakes, and isolate backend operational scripts.
+* **Decoupled Generative AI Orchestration:** Integrated **Amazon Bedrock** running the enterprise-tier **Anthropic Claude 3.5 Sonnet** foundation model. The system processes raw, unstructured strings into strict JSON objects containing classified business domains and calculated urgency weights on the fly.
+* **Hardened Relational Data Isolation:** Provisioned an **Amazon RDS MySQL** instance strictly inside an isolated multi-AZ private subnet array. Database access is entirely unreachable from the public internet, satisfying stringent compliance and data-at-rest isolation patterns.
+* **Automated Contextual Mail Routing:** Programmed **Amazon SES** to act as an asynchronous notification engine. The application intercepts priority markers evaluated by the artificial intelligence layer and instantly fires escalated triage briefs to targeted corporate mail streams.
 
-- Operational bottlenecks
-- Structural security risks
+## Tech Stack
 
-Manually sorting, tagging, and routing high volumes of customer emails or contact form submissions leads to:
-
-- Delayed response times
-- Lost sales opportunities
-- Increased operational overhead
-
-Additionally, simplistic architectures often place web hosting logic and transactional databases inside the same public-facing network, exposing sensitive customer records directly to the public internet and increasing the risk of exploitation.
-
----
-
-# The Solution
-
-## Stateful Web Hosting
-
-Utilized Amazon EC2 to host a continuous, high-performance web application capable of managing persistent user sessions and incoming form requests.
-
-## Intelligent AI Triage
-
-Integrated Amazon Bedrock to dynamically evaluate ticket context and automatically classify customer inquiries into categories such as:
-
-- Sales
-- Support
-- Billing
-
-## Isolated Relational Storage
-
-Deployed an Amazon RDS MySQL instance strictly inside private subnets, fully removing the persistence layer from direct public internet exposure.
-
-## Automated Priority Routing
-
-Configured Amazon SES to trigger immediate high-priority email notifications whenever urgent sales inquiries are identified by the AI classification layer.
+* **Compute:** Amazon EC2 (Amazon Linux 2023 / Python 3.12 / Flask / PyMySQL)
+* **Networking:** Amazon VPC (Public & Private Subnets, Internet Gateway, Stateful Firewalls, DB Subnet Groups)
+* **Database:** Amazon RDS (MySQL Engine Version 8.0+)
+* **Artificial Intelligence:** Amazon Bedrock (Anthropic Claude 3.5 Sonnet Serverless Model Invocations)
+* **Messaging:** Amazon SES (Simple Email Service Sandbox API Engines)
+* **Security & Governance:** IAM (Instance Profiles, Scoped Assumed Roles, Least-Privilege Trust Policies)
 
 ---
 
-# Tech Stack
-
-| Category | Technology |
-|---|---|
-| Compute | Amazon EC2 (Amazon Linux 2023 / Python 3.12 / Flask) |
-| Networking | Amazon VPC (Public & Private Subnets, Internet Gateway, Stateful Firewalls) |
-| Database | Amazon RDS (MySQL Relational Database Service) |
-| Artificial Intelligence | Amazon Bedrock (Anthropic Claude / Foundation Models) |
-| Messaging | Amazon SES (Simple Email Service) |
-| Security | IAM (Instance Profiles & Least-Privilege Policies) |
+## Architecture Diagram
 
 ---
 
-# Project Procedure
+## Project Procedure
 
-## 1. Engineered a Secure Network Topology
+### 1. Network Topology Engineering & Security Contouring
 
-- Created a custom Amazon VPC named `InquiryManagerVPC`
-- Provisioned two public subnets for external-facing web infrastructure
-- Attached an Internet Gateway for inbound client traffic routing
-- Provisioned two private subnets across separate Availability Zones
-- Configured strict security groups:
-  - `EC2-Web-SG` allowing inbound HTTP traffic
-  - `RDS-DB-SG` allowing inbound MySQL traffic only from the EC2 security group on port `3306`
+I engineered a highly segmented custom network block using **Amazon VPC** (`InquiryManagerVPC`) allocating a `/16` CIDR range to achieve complete architectural isolation.
 
----
+* **Subnet Partitioning:** Provisioned two Public Subnets across alternate Availability Zones mapped to an **Internet Gateway** for external ingress. Concurrently, provisioned two Private Subnets completely devoid of public routing tables to house the persistence layer.
+* **Stateful Security Group Matrix:** Designed a strict multi-tier firewall hierarchy. The web server firewall (`EC2-Web-SG`) explicitly constrains public access to inbound TCP port `8080` (Flask application listener) and port `22` (scoped to administrator IP addresses). The database firewall (`RDS-DB-SG`) restricts inbound connections to TCP port `3306`, dynamically matching traffic only if the packet source originates from the explicit security group identifier of the EC2 instance profile.
 
-## 2. Deployed the Stateful Application Tier
+### 2. Application Tier Deployment & Client-Side Ingestion
 
-- Launched an Amazon EC2 instance inside the public subnet using Amazon Linux 2023
-- Deployed a Flask web application for:
-  - Frontend rendering
-  - Client request handling
-  - POST payload ingestion
-- Configured Python database drivers to support concurrent database communication
+I deployed an active compute instance within the public network space running the optimized **Amazon Linux 2023** runtime.
 
----
+* **Web Ingestion Application:** Built and initialized a native **Flask** service handling concurrent client interaction parameters. The server hosts an input portal parsing multi-part text form data payloads.
+* **Database Integration Architecture:** Configured the application scope with native, low-latency client drivers (`PyMySQL`) wrapped in structural context handlers to systematically establish execution loops over the internal private VPC network path.
 
-## 3. Integrated the Generative AI Brain
+### 3. Generative AI Logic Integration (Amazon Bedrock)
 
-- Programmed the application runtime to securely send customer inquiries to Amazon Bedrock using the Boto3 SDK
-- Designed deterministic prompt instructions for AI-driven triage classification
-- Built validation logic to:
-  - Parse AI response output
-  - Assign standardized category labels
-  - Generate urgency scoring based on business impact
+I configured the application engine to communicate securely with serverless models on **Amazon Bedrock**, eliminating the need for self-hosted machine learning clusters.
 
----
+* **Deterministic Prompt Engineering:** Implemented strict system conditioning constraints using the Boto3 SDK, forcing **Anthropic Claude 3.5 Sonnet** to evaluate input texts objectively. The model skips conversational prose or markdown formatting and natively returns a raw, pre-formatted JSON string.
+* **Triage Extraction Schema:** The metadata parsing layer evaluates customer intent against explicit definitions, mapping data states dynamically into designated keys (`category` -> `Sales`, `Support`, `Billing`, `General` | `urgency` -> `Low`, `Medium`, `High`).
 
-## 4. Established the Relational Storage Tier
+### 4. Relational Storage Architecture (Amazon RDS)
 
-- Provisioned an Amazon RDS MySQL instance within a private DB subnet group
-- Created normalized relational database schemas for:
-  - Customer identity records
-  - Inquiry content
-  - AI classification metadata
-  - Timestamp tracking
-- Implemented structured SQL insert operations for every processed customer inquiry
+I provisioned a managed **Amazon RDS MySQL** instance attached directly to a custom private DB Subnet Group across isolated Availability Zones.
 
----
+* **Database Schema Creation:** Wrote relational SQL initialization scripts executing dynamically on startup to confirm physical table consistency. The storage map utilizes data column structures designed to handle data tracing metrics:
 
-## 5. Enforced Hardened Security (IAM)
+```sql
+CREATE TABLE IF NOT EXISTS inquiries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_email VARCHAR(100) NOT NULL,
+    message_text TEXT NOT NULL,
+    ai_category VARCHAR(50) NOT NULL,
+    urgency_score VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-- Configured a custom IAM Role attached directly to the EC2 instance using an IAM Instance Profile
-- Applied least-privilege IAM policies granting:
-  - `bedrock:InvokeModel`
-  - `ses:SendEmail`
-- Eliminated the need for hardcoded AWS credentials within the application environment
+```
 
----
+* **Transactional Ledger Processing:** Every submitted payload uses sanitized, parameterized query runs to commit text payloads, timestamp records, and AI classification calculations directly to the hidden relational cluster.
 
-# Verification and Results
+### 5. IAM Policy Enforcement & Least-Privilege Hardening
 
-## Verified Successful Ingestion
+To prevent security vulnerability vectors, I built a zero-trust credential model avoiding hardcoded secrets or static API access keys inside code.
 
-Submitted live customer inquiries through the Flask interface and confirmed successful request parsing and connection handling.
+* **IAM Instance Profile:** Created an execution role attached natively to the EC2 server instance.
+* **Scoped Policy Parameters:** Built custom JSON configuration statements restricting resource capabilities strictly to the operations required for the system pipeline to run:
 
-## Validated AI Triage and Database Storage
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BedrockModelInvocation",
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeModel"
+            ],
+            "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+        },
+        {
+            "Sid": "SESSendingPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "ses:SendEmail"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
 
-Submitted a high-value quote inquiry and confirmed:
-
-- Amazon Bedrock correctly classified the request as `"Sales"`
-- Appropriate urgency flags were assigned
-- Relational records were successfully inserted into the private MySQL database
-
-## Confirmed Notification Delivery
-
-Verified immediate receipt of Amazon SES notification emails whenever high-priority inquiries were processed.
-
----
-
-# Architecture Diagram
-
-_Add architecture diagram here._
+```
 
 ---
 
-# Verification Screenshots
+## Verification and Results
 
-## VPC Network Topology Configuration
+### Verified Successful Ingestion
 
-Screenshot displaying:
+Submitted test payloads directly to the live server at `http://18.234.97.238:8080`. Application terminal logs verified smooth frame handshakes, real-time context captures, and zero dropping of client transport data strings.
 
-- Public and private subnet segmentation
-- Cross-Availability Zone routing tables
-- Internet Gateway configuration
+### Validated AI Triage and Private Relational Storage
 
----
-
-## Amazon Bedrock Model Access and Invocation Logs
-
-Screenshot showing:
-
-- Model access permissions
-- Successful foundation model invocation responses
+Injected testing data simulating high-value sales requests (e.g., pricing options for large enterprise teams). The **Amazon Bedrock** integration interpreted the intent, outputted a clean JSON classification string, and successfully executed a secure network transaction to record the new entry within the database.
 
 ---
 
-## EC2 Application Logs and Flask Server Output
+## Verification Screenshots
 
-Screenshot displaying:
+### VPC Network Topology Configuration
 
-- Inbound POST request parsing
-- AI classification results
-- Active database connection operations
+Screenshot of the VPC dashboard displaying public and private subnet partitions alongside cross-AZ routing tables confirming hard network boundaries.
 
----
+### EC2 Application Logs and Flask Server Output
 
-## RDS MySQL Query Records
+Screenshot of the live application console showing inbound POST data parsing, successful Bedrock model invocation responses, and active database query loops.
 
-Screenshot confirming:
+### RDS MySQL Query Records
 
-- Successful SQL query execution
-- Stored customer inquiry records
-- Labels and timestamp persistence
+Screenshot showing standard SQL selection results (`SELECT * FROM inquiries;`) executed directly inside the private database instance, confirming successful storage of queries, categories, and priority flags.
 
 ---
 
-# Future Improvements
+## Future Improvements
 
-## Load Balancing and Auto Scaling
-
-Implement:
-
-- Application Load Balancer (ALB)
-- Auto Scaling Group (ASG)
-
-to improve scalability and high availability.
+* **High Availability and Scalability Implementation:** Introduce an Elastic Load Balancer (ELB) alongside an Auto Scaling Group (ASG) across the public subnets to automatically scale the compute layer based on web traffic.
+* **Infrastructure as Code (IaC) Refactoring:** Rebuild this complete multi-tier network topology, EC2 runtime configuration, relational database structure, and IAM role settings into reusable **Terraform** configuration scripts to ensure rapid, automated environment deployments.
+* **Enterprise Secrets Governance:** Migrate raw database login credentials out of server variables and store them inside **AWS Secrets Manager**, configuring programmatic lookups and automated password rotations to enforce stricter data compliance profiles.
 
 ---
 
-## Infrastructure as Code (IaC)
+## Notes
 
-Refactor the complete infrastructure into Terraform configuration files for automated and repeatable deployments.
-
----
-
-## Secrets Management
-
-Migrate plaintext database credentials into AWS Secrets Manager to support:
-
-- Secure secret retrieval
-- Automated credential rotation
-
----
-
-# Notes
-
-This project reflects a production-oriented multi-tier AWS application architecture focused on:
-
-- Strict network segmentation
-- Relational database integrity
-- Generative AI integration
-- Secure administrative automation workflows
+This architecture demonstrates a secure, multi-tier deployment pattern. It highlights key skills in managing isolated network paths, relational state rules, enterprise application compute, serverless generative AI APIs, and decoupled asynchronous messaging frameworks.
