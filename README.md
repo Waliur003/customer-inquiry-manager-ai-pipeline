@@ -181,7 +181,7 @@ customer-inquiry-manager-ai-pipeline/
 
 **Regional Binding:** Targets the dynamic region variable (`var.aws_region`) to safely establish consistent resource provisioning constraints.
 
----
+
 
 ### 2. Isolated Network Topology (`vpc.tf`)
 
@@ -191,7 +191,7 @@ customer-inquiry-manager-ai-pipeline/
 
 **Routing and Egress Gateways:** Attaches an `aws_internet_gateway` to handle all public inbound client handshakes. Concurrently maps an internal `aws_vpc_endpoint` (Gateway Endpoint) for Amazon S3 to the private route table, allowing the database layer to communicate with internal AWS systems entirely over the isolated AWS private backbone network.
 
----
+
 
 ### 3. Stateful Security Infrastructure (`security_groups.tf`)
 
@@ -203,7 +203,7 @@ Implements strict public ingress bounds on TCP Port 8080 (Flask application work
 
 Constructs a zero-trust network perimeter around the persistence tier. It blocks all broad public internet traffic entirely, explicitly restricting inbound execution parameters on TCP Port 3306 (MySQL) to traffic originating exclusively from the security group identifier of the web server.
 
----
+
 
 ### 4. Managed Relational Database Storage (`rds.tf`)
 
@@ -211,7 +211,7 @@ Constructs a zero-trust network perimeter around the persistence tier. It blocks
 
 **Database Customization Parameters:** Launches an `aws_db_instance` running the optimized MySQL 8.0 engine on free-tier compliant infrastructure. The instance enforces security best practices by explicitly hardcoding `publicly_accessible = false` and `skip_final_snapshot = true` to allow smooth sandbox environment lifecycles.
 
----
+
 
 ### 5. Least-Privilege Identity & Access Governance (`iam.tf`)
 
@@ -227,7 +227,7 @@ resources = ["arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-s
 
 **The Instance Profile Container:** Explicitly wraps the generated role inside an `aws_iam_instance_profile` block, establishing the logical interface required to bridge IAM policies directly over to live compute instance hardware frames.
 
----
+
 
 ### 6. Compute Instance Provisioning (`ec2.tf`)
 
@@ -235,7 +235,7 @@ resources = ["arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-s
 
 **Role Identity Attachment:** Sets the `iam_instance_profile` reference parameter directly to the instance profile container defined inside the identity file. This enables the Flask code running inside the server to perform secure, credential-free AWS API calls without hardcoding static keys.
 
----
+
 
 ## 🔒 Security & Parameters Architecture (`variables.tf` & `terraform.tfvars`)
 
