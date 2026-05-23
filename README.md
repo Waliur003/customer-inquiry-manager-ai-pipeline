@@ -51,6 +51,7 @@ Programmed Amazon SES to act as an asynchronous notification engine. The applica
 ---
 
 ## Architecture Diagram
+<img width="1169" height="827" alt="Architecture Diagram For Project 6" src="https://github.com/user-attachments/assets/58a7cabe-ec08-49f9-918e-02885e159fb2" />
 
 ---
 
